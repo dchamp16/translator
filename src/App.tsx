@@ -127,14 +127,14 @@ function App() {
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">
-                Username
+                Name
               </label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                placeholder="Enter your username"
+                placeholder="Enter your name"
                 required
               />
             </div>
