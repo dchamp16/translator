@@ -47,24 +47,26 @@ function App() {
   };
 
   useEffect(() => {
-    if (isLoggedIn) {
-      ws.current = new WebSocket("ws://localhost:8080");
+    const websocketURL =
+      process.env.NODE_ENV === "production"
+        ? `wss://${window.location.host}/` // Use `wss` for secure WebSocket in production
+        : `ws://localhost:8080/`; // Localhost for development
 
-      ws.current.onopen = () => console.log("WebSocket connection opened");
+    ws.current = new WebSocket(websocketURL);
 
-      ws.current.onmessage = (event) => {
-        const message = JSON.parse(event.data);
-        setMessages((prev) => [...prev, message]);
-        if (message.translation) {
-          speakMessage(message.translation);
-        }
-      };
+    ws.current.onopen = () => console.log("WebSocket connection opened");
+    ws.current.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      setMessages((prev) => [...prev, message]);
+      if (message.translation) {
+        speakMessage(message.translation, secondaryLanguage);
+      }
+    };
 
-      ws.current.onerror = (error) => console.error("WebSocket error:", error);
-      ws.current.onclose = () => console.log("WebSocket connection closed");
+    ws.current.onerror = (error) => console.error("WebSocket error:", error);
+    ws.current.onclose = () => console.log("WebSocket connection closed");
 
-      return () => ws.current?.close();
-    }
+    return () => ws.current?.close();
   }, [isLoggedIn, primaryLanguage]);
 
   const startRecording = () => {
