@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "server": "node server.js",
-    "start": "npm run build && npm run server"
+    "start": "node server.js"
   },
   "engines": {
     "node": ">=18.18.0 <19.0.0"
