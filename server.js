@@ -67,7 +67,7 @@ app.post("/translate", async (req, res) => {
 
 
 // Endpoint to post a new message
-app.post("/messages", async (req, res) => {
+app.post("/api/messages", async (req, res) => {
   const { text, username, sourceLanguage, targetLanguage } = req.body;
 
   if (!text || !username || !sourceLanguage || !targetLanguage) {
