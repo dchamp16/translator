@@ -11,6 +11,7 @@ const apiKey = process.env.API_KEY;
 const app = express();
 app.use(express.json());
 app.use(cors());
+app.use("/api", apiRouter);
 
 // Temporary in-memory storage for messages
 let messages = [];
