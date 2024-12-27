@@ -2,7 +2,6 @@ import dotenv from "dotenv";
 import express from "express";
 import axios from "axios";
 import cors from "cors";
-import path from "path";
 
 dotenv.config();
 
@@ -12,37 +11,17 @@ const apiKey = process.env.API_KEY;
 const app = express();
 app.use(express.json());
 app.use(cors());
-app.use(express.static('dist'));
-
-const __dirname = path.resolve();
-const isProduction = process.env.NODE_ENV === "production";
-
-if (isProduction) {
-  const staticPath = path.join(__dirname, 'dist');
-  app.use(express.static(staticPath));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(staticPath, 'index.html'));
-  });
-}
-
 
 // Temporary in-memory storage for messages
 let messages = [];
 
+// Test API endpoint
 app.get('/api/hello', (req, res) => {
   res.json({ message: 'Hello from the backend!' });
 });
 
-
-// Serve React frontend for all other routes
-app.get('*', (req, res) => {
-  res.sendFile('index.html', { root: 'dist' });
-});
-
-
-
 // Translation API endpoint
-app.post("/translate", async (req, res) => {
+app.post("/api/translate", async (req, res) => {
   const { text, targetLanguage } = req.body;
 
   if (!text || !targetLanguage) {
@@ -52,10 +31,7 @@ app.post("/translate", async (req, res) => {
   try {
     const response = await axios.post(
       `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`,
-      {
-        q: text,
-        target: targetLanguage,
-      }
+      { q: text, target: targetLanguage }
     );
     const translation = response.data.data.translations[0].translatedText;
     res.json({ translation });
@@ -64,7 +40,6 @@ app.post("/translate", async (req, res) => {
     res.status(500).json({ error: "Translation failed" });
   }
 });
-
 
 // Endpoint to post a new message
 app.post("/api/messages", async (req, res) => {
@@ -77,10 +52,7 @@ app.post("/api/messages", async (req, res) => {
   try {
     const response = await axios.post(
       `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`,
-      {
-        q: text,
-        target: targetLanguage,
-      }
+      { q: text, target: targetLanguage }
     );
     const translation = response.data.data.translations[0].translatedText;
 
@@ -100,12 +72,13 @@ app.post("/api/messages", async (req, res) => {
   }
 });
 
-
 // Endpoint to fetch messages
-app.get("/messages", (req, res) => {
+app.get("/api/messages", (req, res) => {
   res.json(messages);
 });
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
+
+export default app; // Required for Vercel
