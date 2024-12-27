@@ -5,11 +5,10 @@ export default defineConfig({
   plugins: [react()],
   build: {
     outDir: 'dist',
-    rollupOptions: {
-      input: './index.html', // Ensure this points to your entry file
-    },
   },
   server: {
-    port: 5173, // Development server port
+    proxy: {
+      '/api': 'http://localhost:3000',
+    },
   },
 });
