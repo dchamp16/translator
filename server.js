@@ -18,6 +18,7 @@ app.use(cors());
 // Serve static files from the dist directory
 app.use(express.static(path.join(__dirname, "dist")));
 
+// Temporary in-memory storage for messages
 let messages = [];
 
 // API routes
@@ -48,10 +49,7 @@ app.post("/api/translate", async (req, res) => {
 app.post("/api/messages", async (req, res) => {
   const { text, username, sourceLanguage, targetLanguage } = req.body;
 
-  console.log("Request Body:", req.body); // Log request body
-
   if (!text || !username || !sourceLanguage || !targetLanguage) {
-    console.error("Missing required fields in request");
     return res.status(400).json({ error: "Missing required fields" });
   }
 
@@ -60,8 +58,6 @@ app.post("/api/messages", async (req, res) => {
       `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`,
       { q: text, target: targetLanguage }
     );
-
-    console.log("Google Translate API Response:", response.data); // Log API response
 
     const translation = response.data.data.translations[0].translatedText;
 
@@ -73,15 +69,13 @@ app.post("/api/messages", async (req, res) => {
       timestamp: Date.now(),
     };
 
-    messages.push(newMessage); // Add the new message to in-memory storage
+    messages.push(newMessage);
     res.status(201).json(newMessage);
   } catch (error) {
     console.error("Error translating message:", error.message);
-    console.error("Full error:", error); // Log the full error
     res.status(500).json({ error: "Error processing message" });
   }
 });
-
 
 app.get("/api/messages", (req, res) => {
   res.json(messages);
@@ -96,4 +90,4 @@ app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
 
-export default app; // Required for Vercel
+export default app;
