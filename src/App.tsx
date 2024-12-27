@@ -20,10 +20,14 @@ function App() {
   const [speechQueue, setSpeechQueue] = useState<string[]>([]);
   const isProcessingSpeechQueue = useRef(false);
   const recognition = useRef<any>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const API_BASE_URL = `http://localhost:${import.meta.env.PORT || 8080}`;
 
-  // Fetch messages from the server
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
   const fetchMessages = async () => {
     try {
       const response = await axios.get("/messages");
@@ -51,6 +55,10 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
   const sendMessage = async (text: string) => {
     try {
       const response = await axios.post(`${API_BASE_URL}/messages`, {
@@ -65,8 +73,8 @@ function App() {
       });
 
       const message = response.data;
-      setMessages((prev) => [...prev, message]); // Update the messages state
-      return message; // Return the server response to access the translation
+      setMessages((prev) => [...prev, message]);
+      return message;
     } catch (error) {
       console.error("Error sending message:", error);
       throw error;
@@ -79,26 +87,24 @@ function App() {
 
       recognition.current = new (window.SpeechRecognition ||
         window.webkitSpeechRecognition)();
-      recognition.current.continuous = false; // Disable continuous mode for simplicity
+      recognition.current.continuous = false;
       recognition.current.lang = primaryLanguage;
 
       recognition.current.onresult = async (event: any) => {
         const text = event.results[0][0].transcript;
-        console.log("Recorded text:", text);
-
         try {
-          const response = await sendMessage(text); // Wait for the translated response
+          const response = await sendMessage(text);
           if (response && response.translation) {
-            setSpeechQueue((prevQueue) => [...prevQueue, response.translation]); // Add the translated text to the speech queue
+            setSpeechQueue((prevQueue) => [...prevQueue, response.translation]);
           }
         } catch (error) {
           console.error("Error processing recorded text:", error);
         }
       };
 
-      recognition.current.onend = () => setIsRecording(false); // Handle end of recording
-      recognition.current.start(); // Start recording
-      setIsRecording(true); // Update recording state
+      recognition.current.onend = () => setIsRecording(false);
+      recognition.current.start();
+      setIsRecording(true);
     } catch (error) {
       alert(
         "Microphone access is required. Please check your browser settings."
@@ -136,7 +142,6 @@ function App() {
     });
   };
 
-  // Load voices
   useEffect(() => {
     window.speechSynthesis.onvoiceschanged = () => {
       window.speechSynthesis.getVoices();
@@ -277,8 +282,11 @@ function App() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-3xl w-full mx-auto p-4 overflow-y-auto">
-        <div className="space-y-4">
+      <main className="flex-1 max-w-3xl w-full mx-auto p-4">
+        <div
+          className="h-[calc(100vh-160px)] overflow-y-auto space-y-4 bg-gray-100 rounded-lg p-4"
+          style={{ maxHeight: "calc(100vh - 160px)" }}
+        >
           {messages.map((message) => (
             <div
               key={`${message.id}-${message.timestamp}`}
@@ -304,6 +312,7 @@ function App() {
               </div>
             </div>
           ))}
+          <div ref={messagesEndRef} />
         </div>
       </main>
 

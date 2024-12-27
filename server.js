@@ -12,6 +12,7 @@ const apiKey = process.env.API_KEY;
 const app = express();
 app.use(express.json());
 app.use(cors());
+app.use(express.static('dist'));
 
 const __dirname = path.resolve();
 const isProduction = process.env.NODE_ENV === "production";
@@ -27,6 +28,17 @@ if (isProduction) {
 
 // Temporary in-memory storage for messages
 let messages = [];
+
+app.get('/api/hello', (req, res) => {
+  res.json({ message: 'Hello from the backend!' });
+});
+
+
+// Serve React frontend for all other routes
+app.get('*', (req, res) => {
+  res.sendFile('index.html', { root: 'dist' });
+});
+
 
 
 // Translation API endpoint
