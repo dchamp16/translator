@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Languages, Mic, StopCircle, Volume2 } from "lucide-react";
+import axios from "axios";
 
 interface Message {
   id: string;
@@ -13,102 +14,154 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [primaryLanguage, setPrimaryLanguage] = useState("ja-JP");
-  const [secondaryLanguage, setSecondaryLanguage] = useState("en-US");
+  const [secondaryLanguage, setSecondaryLanguage] = useState("es-ES");
   const [username, setUsername] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const ws = useRef<WebSocket | null>(null);
+  const [speechQueue, setSpeechQueue] = useState<string[]>([]);
+  const isProcessingSpeechQueue = useRef(false);
   const recognition = useRef<any>(null);
 
-  const initializeVoices = () => {
-    return new Promise<void>((resolve) => {
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length) {
-        resolve();
-      } else {
-        window.speechSynthesis.onvoiceschanged = () => {
-          resolve();
-        };
-      }
-    });
-  };
+  const API_BASE_URL = `http://localhost:${import.meta.env.PORT || 8080}`;
 
-  const speakMessage = async (text: string, lang: string) => {
-    await initializeVoices();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
+  // Fetch messages from the server
+  const fetchMessages = async () => {
+    try {
+      const response = await axios.get("/messages");
+      const data = Array.isArray(response.data) ? response.data : [];
 
-    const availableVoices = window.speechSynthesis.getVoices();
-    let voice = availableVoices.find((v) => v.lang === lang);
-    utterance.voice = voice || availableVoices[0]; // Fallback to default voice if none found
+      setMessages((prevMessages) => {
+        const newMessages = data.filter(
+          (message) => !prevMessages.some((prev) => prev.id === message.id)
+        );
+        return [...prevMessages, ...newMessages];
+      });
 
-    utterance.onerror = (e) =>
-      console.error("SpeechSynthesisUtterance error:", e);
-    window.speechSynthesis.speak(utterance);
+      const newQueue = data
+        .filter((msg) => !speechQueue.includes(msg.translation))
+        .map((msg) => msg.translation);
+      setSpeechQueue((prevQueue) => [...prevQueue, ...newQueue]);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+    }
   };
 
   useEffect(() => {
-    const websocketURL =
-      process.env.NODE_ENV === "production"
-        ? `wss://${window.location.host}/` // Use `wss` for secure WebSocket in production
-        : `ws://localhost:8080/`; // Localhost for development
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
-    ws.current = new WebSocket(websocketURL);
+  const sendMessage = async (text: string) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/messages`, {
+        text,
+        username,
+        sourceLanguage: primaryLanguage.startsWith("ja") ? "ja" : "en",
+        targetLanguage: secondaryLanguage.startsWith("ja")
+          ? "ja"
+          : secondaryLanguage.startsWith("es")
+          ? "es"
+          : "en",
+      });
 
-    ws.current.onopen = () => console.log("WebSocket connection opened");
-    ws.current.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      setMessages((prev) => [...prev, message]);
-      if (message.translation) {
-        speakMessage(message.translation, secondaryLanguage);
-      }
-    };
+      const message = response.data;
+      setMessages((prev) => [...prev, message]); // Update the messages state
+      return message; // Return the server response to access the translation
+    } catch (error) {
+      console.error("Error sending message:", error);
+      throw error;
+    }
+  };
 
-    ws.current.onerror = (error) => console.error("WebSocket error:", error);
-    ws.current.onclose = () => console.log("WebSocket connection closed");
+  const startRecording = async () => {
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
 
-    return () => ws.current?.close();
-  }, [isLoggedIn, primaryLanguage]);
+      recognition.current = new (window.SpeechRecognition ||
+        window.webkitSpeechRecognition)();
+      recognition.current.continuous = false; // Disable continuous mode for simplicity
+      recognition.current.lang = primaryLanguage;
 
-  const startRecording = () => {
-    recognition.current = new (window.SpeechRecognition ||
-      window.webkitSpeechRecognition)();
-    recognition.current.continuous = false;
-    recognition.current.lang = primaryLanguage;
+      recognition.current.onresult = async (event: any) => {
+        const text = event.results[0][0].transcript;
+        console.log("Recorded text:", text);
 
-    recognition.current.onresult = (event: any) => {
-      const text = event.results[0][0].transcript;
-      sendMessage(text);
-    };
+        try {
+          const response = await sendMessage(text); // Wait for the translated response
+          if (response && response.translation) {
+            setSpeechQueue((prevQueue) => [...prevQueue, response.translation]); // Add the translated text to the speech queue
+          }
+        } catch (error) {
+          console.error("Error processing recorded text:", error);
+        }
+      };
 
-    recognition.current.onend = () => setIsRecording(false);
-    recognition.current.start();
-    setIsRecording(true);
+      recognition.current.onend = () => setIsRecording(false); // Handle end of recording
+      recognition.current.start(); // Start recording
+      setIsRecording(true); // Update recording state
+    } catch (error) {
+      alert(
+        "Microphone access is required. Please check your browser settings."
+      );
+    }
   };
 
   const stopRecording = () => {
     recognition.current?.stop();
   };
 
-  const sendMessage = (text: string) => {
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send(
-        JSON.stringify({
-          text,
-          username,
-          sourceLanguage: primaryLanguage.startsWith("ja")
-            ? "ja"
-            : primaryLanguage.startsWith("es")
-            ? "es"
-            : "en",
-          targetLanguage: secondaryLanguage.startsWith("ja")
-            ? "ja"
-            : secondaryLanguage.startsWith("es")
-            ? "es"
-            : "en",
-        })
-      );
-    }
+  const speakMessage = (text: string, lang: string) => {
+    return new Promise<void>((resolve) => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = lang;
+      utterance.rate = 0.9;
+      utterance.pitch = 1.0;
+
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice = voices.find((voice) => voice.lang === lang);
+
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
+      } else {
+        console.warn(`No voice found for language: ${lang}`);
+      }
+
+      utterance.onend = () => resolve();
+      utterance.onerror = (e) => {
+        console.error("Speech synthesis error:", e);
+        resolve();
+      };
+
+      window.speechSynthesis.speak(utterance);
+    });
   };
+
+  // Load voices
+  useEffect(() => {
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
+  }, []);
+
+  const processSpeechQueue = async () => {
+    if (isProcessingSpeechQueue.current || speechQueue.length === 0) return;
+    isProcessingSpeechQueue.current = true;
+
+    while (speechQueue.length > 0) {
+      const message = speechQueue.shift();
+      if (message) {
+        await speakMessage(message, secondaryLanguage);
+      }
+    }
+
+    isProcessingSpeechQueue.current = false;
+  };
+
+  useEffect(() => {
+    if (!isProcessingSpeechQueue.current && speechQueue.length > 0) {
+      processSpeechQueue();
+    }
+  }, [speechQueue]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
