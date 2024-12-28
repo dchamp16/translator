@@ -31,8 +31,7 @@ function App() {
   const fetchMessages = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/messages`); // Use API base URL
-      const data = Array.isArray(response.data) ? response.data : [];
-      setMessages((prevMessages) => [...prevMessages, ...data]);
+      setMessages(response.data);
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
@@ -59,9 +58,7 @@ function App() {
           ? "es"
           : "en",
       });
-      const message = response.data;
-      setMessages((prev) => [...prev, message]);
-      return message;
+      setMessages((prev) => [...prev, response.data]);
     } catch (error) {
       console.error("Error sending message:", error);
       throw error;

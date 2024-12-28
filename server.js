@@ -46,6 +46,10 @@ app.post("/api/translate", async (req, res) => {
   }
 });
 
+app.get("/api/messages", (req, res) => {
+  res.json(messages); // Serve the in-memory messages array
+});
+
 app.post("/api/messages", async (req, res) => {
   const { text, username, sourceLanguage, targetLanguage } = req.body;
 
@@ -75,9 +79,6 @@ app.post("/api/messages", async (req, res) => {
     console.error("Error translating message:", error.message);
     res.status(500).json({ error: "Error processing message" });
   }
-});
-app.get("/api/messages", (req, res) => {
-  res.json(messages);
 });
 
 // Fallback route for React frontend
