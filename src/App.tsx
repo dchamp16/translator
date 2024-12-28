@@ -22,7 +22,7 @@ function App() {
   const recognition = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const API_BASE_URL = `/api`;
+  const API_BASE_URL = "/api";
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
