@@ -30,12 +30,13 @@ function App() {
 
   const fetchMessages = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/messages`); // Use API base URL
+      const response = await axios.get(`${API_BASE_URL}/messages`);
       setMessages(response.data);
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
   };
+
   useEffect(() => {
     fetchMessages();
     const interval = setInterval(fetchMessages, 5000);
@@ -58,7 +59,11 @@ function App() {
           ? "es"
           : "en",
       });
-      setMessages((prev) => [...prev, response.data]);
+
+      if (response.data) {
+        setMessages((prev) => [...prev, response.data]);
+        return response.data;
+      }
     } catch (error) {
       console.error("Error sending message:", error);
       throw error;
@@ -67,6 +72,13 @@ function App() {
 
   const startRecording = async () => {
     try {
+      if (
+        !("SpeechRecognition" in window || "webkitSpeechRecognition" in window)
+      ) {
+        alert("Speech recognition is not supported in this browser.");
+        return;
+      }
+
       await navigator.mediaDevices.getUserMedia({ audio: true });
 
       recognition.current = new (window.SpeechRecognition ||
@@ -75,10 +87,21 @@ function App() {
       recognition.current.lang = primaryLanguage;
 
       recognition.current.onresult = async (event: any) => {
+        if (
+          !event.results ||
+          event.results.length === 0 ||
+          !event.results[0][0]?.transcript
+        ) {
+          console.warn("No valid transcript received.");
+          return;
+        }
+
         const text = event.results[0][0].transcript;
+        console.log("Recognized Text:", text);
+
         try {
           const response = await sendMessage(text);
-          if (response && response.translation) {
+          if (response?.translation) {
             setSpeechQueue((prevQueue) => [...prevQueue, response.translation]);
           }
         } catch (error) {
@@ -86,7 +109,10 @@ function App() {
         }
       };
 
+      recognition.current.onspeechstart = () => console.log("Speech started");
+      recognition.current.onspeechend = () => console.log("Speech ended");
       recognition.current.onend = () => setIsRecording(false);
+
       recognition.current.start();
       setIsRecording(true);
     } catch (error) {
@@ -113,7 +139,9 @@ function App() {
       if (preferredVoice) {
         utterance.voice = preferredVoice;
       } else {
-        console.warn(`No voice found for language: ${lang}`);
+        console.warn(
+          `No voice found for language: ${lang}. Using default voice.`
+        );
       }
 
       utterance.onend = () => resolve();
@@ -139,7 +167,11 @@ function App() {
     while (speechQueue.length > 0) {
       const message = speechQueue.shift();
       if (message) {
-        await speakMessage(message, secondaryLanguage);
+        try {
+          await speakMessage(message, secondaryLanguage);
+        } catch (error) {
+          console.error("Error during speech synthesis:", error);
+        }
       }
     }
 
