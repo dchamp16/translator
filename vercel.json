@@ -2,10 +2,10 @@
   "version": 2,
   "builds": [
     { "src": "server.js", "use": "@vercel/node" },
-    { "src": "src/main.tsx", "use": "@vercel/vite" }
+    { "src": "package.json", "use": "@vercel/static-build" }
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "server.js" },
-    { "src": "/(.*)", "dest": "dist/index.html" }
+    { "src": "/(.*)", "dest": "/dist/index.html" }
   ]
 }

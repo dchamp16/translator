@@ -30,25 +30,13 @@ function App() {
 
   const fetchMessages = async () => {
     try {
-      const response = await axios.get("/messages");
+      const response = await axios.get(`${API_BASE_URL}/messages`); // Use API base URL
       const data = Array.isArray(response.data) ? response.data : [];
-
-      setMessages((prevMessages) => {
-        const newMessages = data.filter(
-          (message) => !prevMessages.some((prev) => prev.id === message.id)
-        );
-        return [...prevMessages, ...newMessages];
-      });
-
-      const newQueue = data
-        .filter((msg) => !speechQueue.includes(msg.translation))
-        .map((msg) => msg.translation);
-      setSpeechQueue((prevQueue) => [...prevQueue, ...newQueue]);
+      setMessages((prevMessages) => [...prevMessages, ...data]);
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
   };
-
   useEffect(() => {
     fetchMessages();
     const interval = setInterval(fetchMessages, 5000);
@@ -71,7 +59,6 @@ function App() {
           ? "es"
           : "en",
       });
-
       const message = response.data;
       setMessages((prev) => [...prev, message]);
       return message;

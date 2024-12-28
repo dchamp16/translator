@@ -69,14 +69,13 @@ app.post("/api/messages", async (req, res) => {
       timestamp: Date.now(),
     };
 
-    messages.push(newMessage);
+    messages.push(newMessage); // Push the new message to in-memory storage
     res.status(201).json(newMessage);
   } catch (error) {
     console.error("Error translating message:", error.message);
     res.status(500).json({ error: "Error processing message" });
   }
 });
-
 app.get("/api/messages", (req, res) => {
   res.json(messages);
 });
